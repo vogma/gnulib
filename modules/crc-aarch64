@@ -1,0 +1,28 @@
+Description:
+CRC32 implementation using aarch64 specific optimizations
+
+Files:
+lib/crc-aarch64.h
+lib/crc-aarch64-pmull.c
+m4/crc-aarch64.m4
+
+Depends-on:
+stdint-h
+crc
+
+configure.ac:
+AC_REQUIRE([gl_CRC_AARCH64_PMULL])
+
+Makefile.am:
+if GL_CRC_AARCH64_PMULL
+lib_SOURCES += crc-aarch64-pmull.c
+endif
+
+Include:
+"crc-aarch64.h"
+
+License:
+LGPL
+
+Maintainer:
+All

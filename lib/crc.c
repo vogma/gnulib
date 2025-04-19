@@ -27,6 +27,12 @@ static bool pclmul_enabled = false;
 static bool pclmul_checked = false;
 #endif
 
+#ifdef GL_CRC_AARCH64_PMULL
+#include "crc-aarch64.h"
+static bool pmull_enabled = false;
+static bool pmull_checked = false;
+#endif
+
 #include <string.h>
 
 #if GL_CRC_SLICE_BY_8
@@ -127,6 +133,15 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
     return crc32_update_no_xor_pclmul (crc, buf, len);
 #endif
 
+
+#ifdef GL_CRC_AARCH64_PMULL
+    pmull_enabled = true; //TODO checking runtime feature crc+crypto+sha
+    pmull_checked = true;
+
+    if (pmull_enabled && len >= 16)
+    return crc32_update_no_xor_pmull(crc, buf, len);    
+#endif
+
   slice_alignment = (len & (-8));
 
   for (n = 0; n < slice_alignment; n += 8)
@@ -208,6 +223,18 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
   if (pclmul_enabled && len >= 16)
     return crc32_update_no_xor_pclmul (crc, buf, len);
 #endif
+
+#ifdef GL_CRC_AARCH64_PMULL
+  if (!pmull_checked)
+    {
+      pmull_enabled = true;
+      pmull_checked = true;
+    }
+
+  if (pclmul_enabled && len >= 16)
+    return crc32_update_no_xor_pmull(crc, buf, len);
+#endif
+
 
   for (n = 0; n < len; n++)
     crc = crc32_table[(crc ^ buf[n]) & 0xff] ^ (crc >> 8);
