@@ -39,7 +39,7 @@ static bool pmull_checked = false;
 #define HWCAP_SHA3 (1UL << 17)
 #endif
 
-#endif
+#endif //GL_CRC_AARCH64_PMULL
 
 #include <string.h>
 
@@ -154,7 +154,6 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
 
 
 #ifdef GL_CRC_AARCH64_PMULL
-
     if(!pmull_checked){
       pmull_enabled = features_supported();
       printf("pmull enabled: %s\n",pmull_enabled ? "yes" : "no");
@@ -164,7 +163,7 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
     if (pmull_enabled && len >= 16){
       return crc32_update_no_xor_pmull(crc, buf, len);    
     }
-#endif
+#endif //GL_CRC_AARCH64_PMULL
 
   slice_alignment = (len & (-8));
 
@@ -249,7 +248,6 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
 #endif
 
 #ifdef GL_CRC_AARCH64_PMULL
-
     if(!pmull_checked){
       pmull_enabled = features_supported();
       printf("pmull enabled: %s\n",pmull_enabled ? "yes" : "no");
