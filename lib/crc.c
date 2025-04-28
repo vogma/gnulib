@@ -29,11 +29,30 @@ static bool pclmul_checked = false;
 
 #ifdef GL_CRC_AARCH64_PMULL
 #include "crc-aarch64.h"
+#include "stdio.h"
+#include <sys/auxv.h>  // getauxval, AT_HWCAP
+#include <asm/hwcap.h> // HWCAP_*
 static bool pmull_enabled = false;
 static bool pmull_checked = false;
+
+#ifndef HWCAP_SHA3
+#define HWCAP_SHA3 (1UL << 17)
+#endif
+
 #endif
 
 #include <string.h>
+
+#ifdef GL_CRC_AARCH64_PMULL
+bool features_supported()
+{
+    unsigned long hw = getauxval(AT_HWCAP);
+
+    return (hw & (HWCAP_CRC32 | HWCAP_PMULL | HWCAP_SHA3)) ==
+                   (HWCAP_CRC32 | HWCAP_PMULL | HWCAP_SHA3)
+               ? true : false;
+}
+#endif
 
 #if GL_CRC_SLICE_BY_8
 #include "crc-sliceby8.h"
@@ -135,11 +154,16 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
 
 
 #ifdef GL_CRC_AARCH64_PMULL
-    pmull_enabled = true; //TODO checking runtime feature crc+crypto+sha
-    pmull_checked = true;
 
-    if (pmull_enabled && len >= 16)
-    return crc32_update_no_xor_pmull(crc, buf, len);    
+    if(!pmull_checked){
+      pmull_enabled = features_supported();
+      printf("pmull enabled: %s\n",pmull_enabled ? "yes" : "no");
+      pmull_checked = true;
+    }
+
+    if (pmull_enabled && len >= 16){
+      return crc32_update_no_xor_pmull(crc, buf, len);    
+    }
 #endif
 
   slice_alignment = (len & (-8));
@@ -225,14 +249,16 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
 #endif
 
 #ifdef GL_CRC_AARCH64_PMULL
-  if (!pmull_checked)
-    {
-      pmull_enabled = true;
+
+    if(!pmull_checked){
+      pmull_enabled = features_supported();
+      printf("pmull enabled: %s\n",pmull_enabled ? "yes" : "no");
       pmull_checked = true;
     }
 
-  if (pclmul_enabled && len >= 16)
-    return crc32_update_no_xor_pmull(crc, buf, len);
+    if (pmull_enabled && len >= 16){
+      return crc32_update_no_xor_pmull(crc, buf, len);    
+    }
 #endif
 
 
