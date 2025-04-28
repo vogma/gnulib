@@ -33,7 +33,9 @@ static bool pclmul_checked = false;
 #include <sys/auxv.h>  // getauxval, AT_HWCAP
 #include <asm/hwcap.h> // HWCAP_*
 static bool pmull_enabled = false;
-static bool pmull_checked = false;
+static bool sha3_enabled = false;
+static bool crc_enabled = false;
+static bool features_checked = false;
 
 #ifndef HWCAP_SHA3
 #define HWCAP_SHA3 (1UL << 17)
@@ -44,13 +46,15 @@ static bool pmull_checked = false;
 #include <string.h>
 
 #ifdef GL_CRC_AARCH64_PMULL
-bool features_supported()
+void query_supported_features()
 {
-    unsigned long hw = getauxval(AT_HWCAP);
+  unsigned long hw = getauxval(AT_HWCAP);
 
-    return (hw & (HWCAP_CRC32 | HWCAP_PMULL | HWCAP_SHA3)) ==
-                   (HWCAP_CRC32 | HWCAP_PMULL | HWCAP_SHA3)
-               ? true : false;
+  pmull_enabled = (hw & HWCAP_PMULL) == HWCAP_PMULL;
+  sha3_enabled = (hw & HWCAP_SHA3) == HWCAP_SHA3;
+  crc_enabled = (hw & HWCAP_CRC32) == HWCAP_CRC32;
+
+  return;
 }
 #endif
 
@@ -152,18 +156,27 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
     return crc32_update_no_xor_pclmul (crc, buf, len);
 #endif
 
-
 #ifdef GL_CRC_AARCH64_PMULL
-    if(!pmull_checked){
-      pmull_enabled = features_supported();
-      printf("pmull enabled: %s\n",pmull_enabled ? "yes" : "no");
-      pmull_checked = true;
-    }
+  if (!features_checked)
+  {
+    query_supported_features();
+    printf("pmull enabled: %s\n", pmull_enabled ? "yes" : "no");
+    printf("sha3 enabled: %s\n", sha3_enabled ? "yes" : "no");
+    printf("crc32 enabled: %s\n", crc_enabled ? "yes" : "no");
+  }
 
-    if (pmull_enabled && len >= 16){
-      return crc32_update_no_xor_pmull(crc, buf, len);    
-    }
-#endif //GL_CRC_AARCH64_PMULL
+  bool full_features = pmull_enabled && crc_enabled && sha3_enabled;
+  bool pmull_crc_features = pmull_enabled && crc_enabled;
+
+  if (full_features && len >= 16)
+  {
+    return crc32_update_no_xor_pmull_crc_sha3(crc, buf, len);
+  }
+  else if (pmull_crc_features && len >= 16)
+  {
+    return crc32_update_no_xor_pmull_crc(crc, buf, len);
+  }
+#endif // GL_CRC_AARCH64_PMULL
 
   slice_alignment = (len & (-8));
 
@@ -248,16 +261,26 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
 #endif
 
 #ifdef GL_CRC_AARCH64_PMULL
-    if(!pmull_checked){
-      pmull_enabled = features_supported();
-      printf("pmull enabled: %s\n",pmull_enabled ? "yes" : "no");
-      pmull_checked = true;
-    }
+  if (!features_checked)
+  {
+    query_supported_features();
+    printf("pmull enabled: %s\n", pmull_enabled ? "yes" : "no");
+    printf("sha3 enabled: %s\n", sha3_enabled ? "yes" : "no");
+    printf("crc32 enabled: %s\n", crc_enabled ? "yes" : "no");
+  }
 
-    if (pmull_enabled && len >= 16){
-      return crc32_update_no_xor_pmull(crc, buf, len);    
-    }
-#endif
+  bool full_features = pmull_enabled && crc_enabled && sha3_enabled;
+  bool pmull_crc_features = pmull_enabled && crc_enabled;
+
+  if (full_features && len >= 16)
+  {
+    return crc32_update_no_xor_pmull_crc_sha3(crc, buf, len);
+  }
+  else if (pmull_crc_features && len >= 16)
+  {
+    return crc32_update_no_xor_pmull_crc(crc, buf, len);
+  }
+#endif // GL_CRC_AARCH64_PMULL
 
 
   for (n = 0; n < len; n++)
@@ -266,7 +289,7 @@ crc32_update_no_xor (uint32_t crc, const char *buf, size_t len)
   return crc;
 }
 
-#endif
+#endif //GL_CRC_SLICE_BY_8
 
 uint32_t
 crc32_no_xor (const char *buf, size_t len)
