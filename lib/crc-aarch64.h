@@ -27,7 +27,11 @@ extern "C" {
 #endif
 
 extern uint32_t
-crc32_update_no_xor_pmull(uint32_t crc, const void *buf, size_t len)
+crc32_update_no_xor_pmull_crc_sha3(uint32_t crc, const void *buf, size_t len)
+  _GL_ATTRIBUTE_PURE;
+
+extern uint32_t
+crc32_update_no_xor_pmull_crc(uint32_t crc, const void *buf, size_t len)
   _GL_ATTRIBUTE_PURE;
 
 #ifdef __cplusplus
